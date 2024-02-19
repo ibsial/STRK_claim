@@ -1,3 +1,5 @@
+## Questions, requests, wishes? All of it should go here -> https://t.me/findmeonchain
+
 ### installation
 `npm i`
 
