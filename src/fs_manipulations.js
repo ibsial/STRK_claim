@@ -84,5 +84,8 @@ export const importProxies = async () => {
         proxies.push(line)
     })
     await once(rl, 'close')
+    if (proxies[0] == 'login:pass@ip:port') {
+        return []
+    }
     return proxies
 }
