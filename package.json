@@ -1,0 +1,18 @@
+{
+  "scripts": {
+    "enrichment": "npx ts-node ./index.ts"
+  },
+  "devDependencies": {
+    "axios": "^1.4.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.1.6"
+  },
+  "dependencies": {
+    "@types/cli-progress": "^3.11.0",
+    "chalk": "^4.1.2",
+    "cli-progress": "^3.12.0",
+    "ethers": "^6.6.4",
+    "https-proxy-agent": "^7.0.4",
+    "starknet": "^5.24.3"
+  }
+}

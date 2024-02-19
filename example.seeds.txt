@@ -1,0 +1,12 @@
+index is your wallet number in argent minus 1. Suppose i have acc #1 -> index is 0. 
+## general example ##
+any seed phrase containing twelve words which is eligible to claim,index,exch_address
+
+OR You can avoid exch address if sending is not needed
+any seed phrase containing twelve words which is eligible to claim,index,
+
+OR You can avoid index if its 0
+any seed phrase containing twelve words which is eligible to claim,,exch_address
+
+OR You can avoid index if its 0 and exch address if sending is not needed
+any seed phrase containing twelve words which is eligible to claim,,
