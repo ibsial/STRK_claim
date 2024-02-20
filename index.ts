@@ -1,4 +1,4 @@
-import {sendToExch, sleepBetweenAccs} from './config'
+import {claim, sendToExch, sleepBetweenAccs} from './config'
 import {MnemonicStarknetWallet} from './src/MnemonicWallet'
 import {PrivateKeyWallet} from './src/PrivateKeyWallet'
 import {getMnemonicData, getPrivatesData, importProxies} from './src/fs_manipulations.js'
@@ -25,19 +25,20 @@ async function runWallet(wallet: MnemonicStarknetWallet | PrivateKeyWallet) {
         }
     }
     console.log(`wallet inited`)
+    if (claim) {
+        let claimData = await wallet.getClaimData()
 
-    let claimData = await wallet.getClaimData()
-    
-    if (claimData == undefined) {
-        console.log("wallet not eligible")
-        return
+        if (claimData == undefined) {
+            console.log('wallet not eligible')
+            return
+        }
+        await wallet.claim({
+            identity: claimData.identity,
+            balance: BigInt(claimData.amount) * 10n ** 18n,
+            index: claimData.merkle_index,
+            merkle_path: claimData.merkle_path
+        })
     }
-    await wallet.claim({
-        identity: claimData.identity,
-        balance: claimData.amount,
-        index: claimData.merkle_index,
-        merkle_path: claimData.merkle_path
-    })
     if (sendToExch) {
         let transfer = await wallet.transfer(STRK)
     }

@@ -1,6 +1,6 @@
 import {RandomHelpers, NumbersHelpers, sleep, log, c, retry, getTxStatus, defaultSleep} from './helpers'
 import {erc20_abi} from '../abi/erc20'
-import {Wallet, JsonRpcProvider, HDNodeWallet, formatUnits, parseEther} from 'ethers'
+import {Wallet, JsonRpcProvider, HDNodeWallet, formatUnits, parseEther, formatEther} from 'ethers'
 import {
     Account,
     CallData,
@@ -167,19 +167,6 @@ class MnemonicStarknetWallet {
         this.starknetAccount = new Account(this.starkProvider, this.starknetAccount.address, this.starknetKey)
         log(`changed provider`)
     }
-    async claimStrak(proof: any[]): Promise<ActionResult> {
-        let claimContract = new Contract(claim_abi, this.claimAddress, this.starkProvider)
-        let claimCallData = claimContract.populate('claim', [proof])
-        let multicall
-        try {
-            multicall = await this.starknetAccount.execute([claimCallData], undefined, {maxFee: parseEther(maxFee)})
-            log(`${this.starknetAddress} claimed STRK`, c.green(explorer + multicall.transaction_hash))
-            return await this.retryGetTxStatus(multicall.transaction_hash, 'success!')
-        } catch (e: any) {
-            this.changeProvider()
-            return this.claimStrak(proof)
-        }
-    }
     async transfer(token: Token): Promise<ActionResult> {
         if (this.exchAddress == undefined) {
             return {success: true, statusCode: 1, result: 'wanted to send, but no exch address provided'}
@@ -188,6 +175,7 @@ class MnemonicStarknetWallet {
         while (amount <= 1n) {
             amount = (await this.getBalance(token))?.result
             console.log(`waiting strk to arrive`)
+            await defaultSleep(5)
         }
         let tokenContract = new Contract(token.abi, token.address, this.starkProvider)
         let transferCallData = tokenContract.populate('transfer', [this.exchAddress, uint256.bnToUint256(amount)])
@@ -200,9 +188,9 @@ class MnemonicStarknetWallet {
             )
             return await this.retryGetTxStatus(multicall.transaction_hash, 'success!')
         } catch (e: any) {
-            // console.log(e)
+            console.log(e)
             this.changeProvider()
-            return {success: false, statusCode: 0, result: ''}
+            return this.transfer(token)
         }
     }
     async getClaimData(): Promise<any> {
@@ -223,7 +211,7 @@ class MnemonicStarknetWallet {
         try {
             const contract = new Contract(claim_abi, this.claimAddress, this.starknetAccount)
             let hash = await contract.claim(data)
-            console.log(c.green(`claimed ${data.balance} STRK ${explorer + hash.transaction_hash}`))
+            console.log(c.green(`claimed ${formatEther(data.balance)} STRK ${explorer + hash.transaction_hash}`))
         } catch (e: any) {
             console.log(e.message)
         }
