@@ -29,7 +29,7 @@ async function runWallet(wallet: MnemonicStarknetWallet | PrivateKeyWallet) {
         let claimData = await wallet.getClaimData()
 
         if (claimData == undefined) {
-            console.log('wallet not eligible')
+            console.log(wallet.starknetAddress, 'wallet not eligible')
             return
         }
         await wallet.claim({

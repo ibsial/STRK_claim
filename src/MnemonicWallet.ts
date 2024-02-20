@@ -199,7 +199,7 @@ class MnemonicStarknetWallet {
             let data = await JSON.parse(source)
             let len = data.eligibles.length
             for (let j = 0; j < len; j++) {
-                console.log(data.eligibles[j].identity == this.starknetAddress.toLowerCase(), `./proofs/starknet-${i}.json`)
+                // console.log(data.eligibles[j].identity == this.starknetAddress.toLowerCase(), `./proofs/starknet-${i}.json`)
                 if (data.eligibles[j].identity == this.starknetAddress.toLowerCase()) {
                     return data.eligibles[j]
                 }
