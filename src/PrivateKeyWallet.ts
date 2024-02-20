@@ -19,7 +19,7 @@ class PrivateKeyWallet extends MnemonicStarknetWallet {
         if (!address) address = this.starknetAddress
         try {
             let version: ContractVersion = await this.starkProvider.getContractVersion(address)
-            if (version == undefined) {
+            if (version.cairo == undefined) {
                 return {success: true, statusCode: 1, result: false}
             }
             this.starknetAccount = new Account(this.starkProvider, this.starknetAddress, this.validKey, version.cairo)

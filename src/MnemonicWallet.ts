@@ -1,9 +1,22 @@
 import {RandomHelpers, NumbersHelpers, sleep, log, c, retry, getTxStatus, defaultSleep} from './helpers'
 import {erc20_abi} from '../abi/erc20'
 import {Wallet, JsonRpcProvider, HDNodeWallet, formatUnits, parseEther} from 'ethers'
-import {Account, CallData, ec, hash, constants, uint256, Contract, Call, getChecksumAddress, RpcProvider, LibraryError} from 'starknet'
+import {
+    Account,
+    CallData,
+    ec,
+    hash,
+    constants,
+    uint256,
+    Contract,
+    Call,
+    getChecksumAddress,
+    RpcProvider,
+    LibraryError,
+    ContractVersion
+} from 'starknet'
 import axios from 'axios'
-import {RPC_URLS, explorer} from '../config'
+import {RPC_URLS, explorer, maxFee} from '../config'
 import {ActionResult, Token} from './types'
 import {claim_abi} from '../abi/claim'
 import {STRK} from './tokens'
@@ -62,7 +75,7 @@ class MnemonicStarknetWallet {
         this.walletCairoVersion = '0'
     }
     async init(): Promise<ActionResult> {
-        return await this.findDeployedAddress(this.mnemonic, this.index)
+        return this.findDeployedAddress(this.mnemonic, this.index)
     }
     async findDeployedAddress(mnemonic: string, index: string): Promise<ActionResult> {
         try {
@@ -89,6 +102,17 @@ class MnemonicStarknetWallet {
             cairo0Address = getChecksumAddress(cairo0Address)
             cairo1Address = getChecksumAddress(cairo1Address)
 
+            let isCairo0Deployed: ActionResult = await this.isAccountDeployed(cairo0Address)
+            if (isCairo0Deployed.result) {
+                this.starknetAddress = cairo0Address
+                let version: ContractVersion = await this.starkProvider.getContractVersion(cairo0Address)
+                if (version.cairo == undefined) {
+                    return {success: true, statusCode: 1, result: false}
+                }
+                this.starknetAccount = new Account(this.starkProvider, cairo0Address, groundKey, version.cairo)
+                this.walletCairoVersion = version.cairo
+                return {success: true, statusCode: 1, result: cairo0Address}
+            }
             let isCairo1Deployed: ActionResult = await this.isAccountDeployed(cairo1Address)
             if (isCairo1Deployed.result) {
                 this.starknetAddress = cairo1Address
@@ -96,19 +120,9 @@ class MnemonicStarknetWallet {
                 this.walletCairoVersion = '1'
                 return {success: true, statusCode: 1, result: cairo1Address}
             }
-
-            let isCairo0Deployed: ActionResult = await this.isAccountDeployed(cairo0Address)
-            if (isCairo0Deployed.result) {
-                this.starknetAddress = cairo0Address
-                // suppose wallet is not upgraded, cairo check will be performed later
-                this.starknetAccount = new Account(this.starkProvider, cairo0Address, groundKey, '0')
-                this.walletCairoVersion = '0'
-                return {success: true, statusCode: 1, result: cairo0Address}
-            } else {
-                this.starknetAddress = cairo1Address
-                this.starknetAccount = new Account(this.starkProvider, cairo1Address, groundKey, '1')
-                return {success: true, statusCode: 1, result: undefined}
-            }
+            this.starknetAddress = cairo1Address
+            this.starknetAccount = new Account(this.starkProvider, cairo1Address, groundKey, '1')
+            return {success: true, statusCode: 1, result: undefined}
         } catch (e: any) {
             this.changeProvider()
             return this.findDeployedAddress(mnemonic, index)
@@ -156,14 +170,14 @@ class MnemonicStarknetWallet {
         if (this.exchAddress == undefined) {
             return {success: true, statusCode: 1, result: 'wanted to send, but no exch address provided'}
         }
-        const amount = (await this.getBalance(STRK))?.result
+        const amount = (await this.getBalance(token))?.result
         let tokenContract = new Contract(token.abi, token.address, this.starkProvider)
         let transferCallData = tokenContract.populate('transfer', [this.exchAddress, uint256.bnToUint256(amount)])
         let multicall
         try {
-            multicall = await this.starknetAccount.execute([transferCallData])
+            multicall = await this.starknetAccount.execute([transferCallData], undefined, {maxFee: maxFee})
             log(
-                `${this.starknetAddress} transferred ${formatUnits(amount, token.decimals)}:`,
+                `${this.starknetAddress} transferred ${formatUnits(amount, token.decimals)} ${token.name}:`,
                 c.green(explorer + multicall.transaction_hash)
             )
             return await this.retryGetTxStatus(multicall.transaction_hash, 'success!')

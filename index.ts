@@ -3,7 +3,7 @@ import {MnemonicStarknetWallet} from './src/MnemonicWallet'
 import {PrivateKeyWallet} from './src/PrivateKeyWallet'
 import {getMnemonicData, getPrivatesData} from './src/fs_manipulations.js'
 import {RandomHelpers, c, defaultSleep} from './src/helpers'
-import {STRK} from './src/tokens'
+import {ETH, STRK} from './src/tokens'
 
 async function runWallet(wallet: MnemonicStarknetWallet | PrivateKeyWallet) {
     if (!wallet.exchAddress) {
@@ -25,6 +25,8 @@ async function runWallet(wallet: MnemonicStarknetWallet | PrivateKeyWallet) {
         }
     }
     console.log(`wallet inited`)
+
+
     let claimData = await wallet.getClaimData('')
     let claim = await wallet.claimStrak(claimData)
     if (!claim.success) {
