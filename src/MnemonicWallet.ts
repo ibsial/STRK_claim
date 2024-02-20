@@ -15,12 +15,24 @@ import {
     LibraryError,
     ContractVersion
 } from 'starknet'
-import axios from 'axios'
+import axios, {AxiosInstance} from 'axios'
+import * as fs from 'fs'
 import {RPC_URLS, explorer, maxFee} from '../config'
 import {ActionResult, Token} from './types'
 import {claim_abi} from '../abi/claim'
 import {STRK} from './tokens'
 import {HttpsProxyAgent} from 'https-proxy-agent'
+// import data0 from '../proofs/starknet-0.json'
+// import data1 from '../proofs/starknet-1.json'
+// import data2 from '../proofs/starknet-2.json'
+// import data3 from '../proofs/starknet-3.json'
+// import data4 from '../proofs/starknet-4.json'
+// import data5 from '../proofs/starknet-5.json'
+// import data6 from '../proofs/starknet-6.json'
+// import data7 from '../proofs/starknet-7.json'
+// import data8 from '../proofs/starknet-8.json'
+// import data9 from '../proofs/starknet-9.json'
+// import data10 from '../proofs/starknet-10.json'
 
 class MnemonicStarknetWallet {
     type = 'seed'
@@ -34,6 +46,8 @@ class MnemonicStarknetWallet {
     starknetAddress: string
     starknetAccount: Account
     walletCairoVersion: '0' | '1'
+
+    captchaSolution: any = undefined
 
     starkProvider = new RpcProvider({
         nodeUrl: RandomHelpers.chooseElementFromArray(RPC_URLS)
@@ -158,7 +172,7 @@ class MnemonicStarknetWallet {
         let claimCallData = claimContract.populate('claim', [proof])
         let multicall
         try {
-            multicall = await this.starknetAccount.execute([claimCallData])
+            multicall = await this.starknetAccount.execute([claimCallData], undefined, {maxFee: parseEther(maxFee)})
             log(`${this.starknetAddress} claimed STRK`, c.green(explorer + multicall.transaction_hash))
             return await this.retryGetTxStatus(multicall.transaction_hash, 'success!')
         } catch (e: any) {
@@ -170,7 +184,11 @@ class MnemonicStarknetWallet {
         if (this.exchAddress == undefined) {
             return {success: true, statusCode: 1, result: 'wanted to send, but no exch address provided'}
         }
-        const amount = (await this.getBalance(token))?.result
+        let amount = (await this.getBalance(token))?.result
+        while (amount <= 1n) {
+            amount = (await this.getBalance(token))?.result
+            console.log(`waiting strk to arrive`)
+        }
         let tokenContract = new Contract(token.abi, token.address, this.starkProvider)
         let transferCallData = tokenContract.populate('transfer', [this.exchAddress, uint256.bnToUint256(amount)])
         let multicall
@@ -187,10 +205,28 @@ class MnemonicStarknetWallet {
             return {success: false, statusCode: 0, result: ''}
         }
     }
-    async getClaimData(proxy: string): Promise<any> {
-        const agent = new HttpsProxyAgent(proxy)
-        const sess = axios.create({httpAgent: agent, httpsAgent: agent})
-        let resp = await sess.get('')
+    async getClaimData(): Promise<any> {
+        for (let i = 0; i <= 10; i++) {
+            let source = fs.readFileSync(`./proofs/starknet-${i}.json`, 'utf-8')
+            let data = await JSON.parse(source)
+            let len = data.eligibles.length
+            for (let j = 0; j < len; j++) {
+                console.log(data.eligibles[j].identity == this.starknetAddress.toLowerCase(), `./proofs/starknet-${i}.json`)
+                if (data.eligibles[j].identity == this.starknetAddress.toLowerCase()) {
+                    return data.eligibles[j]
+                }
+            }
+        }
+        return undefined
+    }
+    async claim(data: any) {
+        try {
+            const contract = new Contract(claim_abi, this.claimAddress, this.starknetAccount)
+            let hash = await contract.claim(data)
+            console.log(c.green(`claimed ${data.balance} STRK ${explorer + hash.transaction_hash}`))
+        } catch (e: any) {
+            console.log(e.message)
+        }
     }
     /**
      * retriable getBalance

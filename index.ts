@@ -1,12 +1,12 @@
 import {sendToExch, sleepBetweenAccs} from './config'
 import {MnemonicStarknetWallet} from './src/MnemonicWallet'
 import {PrivateKeyWallet} from './src/PrivateKeyWallet'
-import {getMnemonicData, getPrivatesData} from './src/fs_manipulations.js'
+import {getMnemonicData, getPrivatesData, importProxies} from './src/fs_manipulations.js'
 import {RandomHelpers, c, defaultSleep} from './src/helpers'
 import {ETH, STRK} from './src/tokens'
 
 async function runWallet(wallet: MnemonicStarknetWallet | PrivateKeyWallet) {
-    if (!wallet.exchAddress) {
+    if (!wallet.exchAddress && sendToExch) {
         console.log(`want to send to EXCH but no address provided`)
         return
     }
@@ -26,13 +26,18 @@ async function runWallet(wallet: MnemonicStarknetWallet | PrivateKeyWallet) {
     }
     console.log(`wallet inited`)
 
-
-    let claimData = await wallet.getClaimData('')
-    let claim = await wallet.claimStrak(claimData)
-    if (!claim.success) {
-        console.log(`${wallet.starknetAddress} could not claim`)
+    let claimData = await wallet.getClaimData()
+    
+    if (claimData == undefined) {
+        console.log("wallet not eligible")
         return
     }
+    await wallet.claim({
+        identity: claimData.identity,
+        balance: claimData.amount,
+        index: claimData.merkle_index,
+        merkle_path: claimData.merkle_path
+    })
     if (sendToExch) {
         let transfer = await wallet.transfer(STRK)
     }
