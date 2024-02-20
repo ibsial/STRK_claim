@@ -170,18 +170,20 @@ class MnemonicStarknetWallet {
         if (this.exchAddress == undefined) {
             return {success: true, statusCode: 1, result: 'wanted to send, but no exch address provided'}
         }
-        const amount = (await this.getBalance(token))?.result
+        // const amount = (await this.getBalance(token))?.result
+        const amount = 100n
         let tokenContract = new Contract(token.abi, token.address, this.starkProvider)
         let transferCallData = tokenContract.populate('transfer', [this.exchAddress, uint256.bnToUint256(amount)])
         let multicall
         try {
-            multicall = await this.starknetAccount.execute([transferCallData], undefined, {maxFee: maxFee})
+            multicall = await this.starknetAccount.execute([transferCallData], undefined, {maxFee: parseEther(maxFee)})
             log(
                 `${this.starknetAddress} transferred ${formatUnits(amount, token.decimals)} ${token.name}:`,
                 c.green(explorer + multicall.transaction_hash)
             )
             return await this.retryGetTxStatus(multicall.transaction_hash, 'success!')
         } catch (e: any) {
+            // console.log(e)
             this.changeProvider()
             return {success: false, statusCode: 0, result: ''}
         }
